@@ -40,6 +40,19 @@ func (r *Repository) SaveManifest(batchID string, manifest domain.Manifest) erro
 	return atomicJSON(filepath.Join(r.manifestDir, safeName(batchID)+".json"), manifest)
 }
 
+// DeleteManifest removes a manifest file. It is used to roll back a freshly
+// written manifest when a later persistence step (audit) fails. A missing
+// file is not an error.
+func (r *Repository) DeleteManifest(batchID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	path := filepath.Join(r.manifestDir, safeName(batchID)+".json")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 func (r *Repository) LoadManifest(batchID string) (*domain.Manifest, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -89,6 +89,20 @@ func (r *Repository) SaveBatch(batch *domain.RecordingBatch) error {
 	return atomicJSON(filepath.Join(r.batchDir, safeName(batch.BatchID)+".json"), batch)
 }
 
+// DeleteBatch removes a batch snapshot file. It is used to roll back a
+// freshly created batch when a later persistence step (manifest or audit)
+// fails. A missing file is not an error because the batch may never have
+// been written.
+func (r *Repository) DeleteBatch(batchID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	path := filepath.Join(r.batchDir, safeName(batchID)+".json")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 func (r *Repository) LoadBatch(id string) (*domain.RecordingBatch, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

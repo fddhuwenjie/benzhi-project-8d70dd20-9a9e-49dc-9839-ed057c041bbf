@@ -40,6 +40,9 @@ func (s *Service) execute(batchID, action string, meta Meta, payload any, change
 		result.IdempotentReplay = true
 		return result, nil
 	}
+	// Capture the pre-change snapshot so that any persistence failure can be
+	// rolled back to keep batch, manifest, audit and idempotency consistent.
+	previousBatch, _ := s.repo.LoadBatch(batchID)
 	b, manifest, err := change()
 	if err != nil {
 		return Result{}, err
@@ -50,10 +53,13 @@ func (s *Service) execute(batchID, action string, meta Meta, payload any, change
 	if err = s.repo.SaveBatch(b); err != nil {
 		return Result{}, err
 	}
+	manifestSaved := false
 	if manifest != nil {
 		if err = s.repo.SaveManifest(batchID, *manifest); err != nil {
+			s.rollbackPersist(batchID, previousBatch, false)
 			return Result{}, err
 		}
+		manifestSaved = true
 	}
 	details := map[string]any{"status": b.Status, "manifest_digest": b.PublishedManifestDigest, "request_fingerprint": fingerprint}
 	if action == "create" {
@@ -114,6 +120,7 @@ func (s *Service) execute(batchID, action string, meta Meta, payload any, change
 		}
 	}
 	if _, err = s.audit.Append(batchID, b.Revision, action, meta.Actor, meta.RequestID, details, s.now()); err != nil {
+		s.rollbackPersist(batchID, previousBatch, manifestSaved)
 		return Result{}, err
 	}
 	result := Result{Action: action, Batch: b, Manifest: manifest}
@@ -154,6 +161,24 @@ func (s *Service) loadForWrite(batchID string, meta Meta) (*domain.RecordingBatc
 	}
 	return b, nil
 }
+
+// rollbackPersist restores batch and manifest snapshots to their state before
+// the current command when a persistence step (manifest save or audit append)
+// fails after the batch snapshot has already been advanced. If previousBatch is
+// nil the batch snapshot is deleted (freshly created case); otherwise the
+// prior snapshot is restored so the revision stays aligned with the audit log.
+// When manifestSaved is true the freshly written manifest is removed as well.
+func (s *Service) rollbackPersist(batchID string, previousBatch *domain.RecordingBatch, manifestSaved bool) {
+	if manifestSaved {
+		_ = s.repo.DeleteManifest(batchID)
+	}
+	if previousBatch != nil {
+		_ = s.repo.SaveBatch(previousBatch)
+	} else {
+		_ = s.repo.DeleteBatch(batchID)
+	}
+}
+
 func (s *Service) batchLock(id string) *sync.Mutex {
 	value, _ := s.locks.LoadOrStore(id, &sync.Mutex{})
 	return value.(*sync.Mutex)
