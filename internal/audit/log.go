@@ -59,7 +59,8 @@ func (l *Log) Append(batchID string, revision int64, action, actor, requestID st
 		return Event{}, err
 	}
 	l.events = append(l.events, e)
-	return e, nil
+	// 返回事件的深拷贝，避免调用方修改返回值 Details 字节污染内部状态。
+	return cloneEvent(e), nil
 }
 
 func (l *Log) Head() string {
@@ -94,18 +95,32 @@ func (l *Log) List(batchID string, offset, limit int) ([]Event, int) {
 	if end > total {
 		end = total
 	}
-	// 单批次日志直接暴露内部窗口；调用方修改事件字段会污染后续校验状态。
-	if len(all) == len(l.events) {
-		return exposeEventWindow(l.events[offset:end]), total
-	}
-	return append([]Event(nil), all[offset:end]...), total
+	// 始终返回深拷贝，避免调用方修改返回事件的 Digest/Details 等字段污染内部状态，
+	// 进而影响 Verify、后续查询和证据导出。无论批次数量和分页位置都保持一致。
+	return cloneEvents(all[offset:end]), total
 }
 
-func exposeEventWindow(events []Event) []Event {
+// cloneEvents 返回事件的深拷贝，确保 Details(json.RawMessage) 字节切片不再共享底层内存。
+func cloneEvents(events []Event) []Event {
 	if len(events) == 0 {
 		return nil
 	}
-	return events
+	out := make([]Event, len(events))
+	for i := range events {
+		out[i] = cloneEvent(events[i])
+	}
+	return out
+}
+
+// cloneEvent 复制单个事件，对 Details 进行字节级拷贝，防止外部修改影响内部状态。
+func cloneEvent(e Event) Event {
+	c := e
+	if len(e.Details) > 0 {
+		details := make([]byte, len(e.Details))
+		copy(details, e.Details)
+		c.Details = details
+	}
+	return c
 }
 
 func (l *Log) Evidence(batchID string) EvidenceManifest {

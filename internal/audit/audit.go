@@ -77,5 +77,6 @@ func (l *Log) Query(batchID string, q Query) ([]Event, int, error) {
 	if end > len(all) {
 		end = len(all)
 	}
-	return append([]Event(nil), all[q.Offset:end]...), total, nil
+	// 返回深拷贝，避免调用方修改返回事件的 Digest/Details 等字段污染内部状态。
+	return cloneEvents(all[q.Offset:end]), total, nil
 }
