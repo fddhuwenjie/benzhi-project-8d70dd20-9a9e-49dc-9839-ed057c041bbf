@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>田野语音开放档案</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <header>
+    <div><span class="eyebrow">FIELD VOICE ARCHIVE</span><h1>田野语音开放档案</h1></div>
+    <p>从知情授权到伦理复核，每一步都有可验证的修订和证据。</p>
+  </header>
+  <main>
+    <aside>
+      <h2>批次</h2>
+      <button id="refresh" class="secondary">刷新批次</button>
+      <div id="batch-list" class="batch-list"></div>
+      <a id="evidence-link" class="download hidden" href="#">下载证据清单</a>
+    </aside>
+    <section class="workspace">
+      <div id="notice" role="status">请选择批次，或从建档开始。</div>
+      <div class="status-strip"><span id="selected">未选择批次</span><span id="status">—</span><span id="revision">revision —</span></div>
+
+      <details open><summary><b>01</b> 创建批次并冻结基线</summary>
+        <form id="create-form" class="grid">
+          <label>批次 ID<input name="batch_id" required value="batch-demo"></label>
+          <label>标题<input name="title" required value="示范田野录音"></label>
+          <label>语言变体<input name="language_variant" required value="示范语北部变体"></label>
+          <label>采集地点<input name="collection_site" required value="示范村"></label>
+          <label>采集日期<input name="collected_at" type="date" required></label>
+          <label class="wide">媒体 SHA-256<input name="media_sha256" required value="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"></label>
+          <label>建档人<input name="actor" required value="collector-1"></label><button>创建批次</button>
+        </form>
+      </details>
+
+      <details><summary><b>02</b> 登记并核验知情授权</summary>
+        <form id="consent-form" class="grid">
+          <label>授权 ID<input name="consent_id" required value="consent-1"></label><label>参与者代码<input name="participant_code" required value="speaker-1"></label>
+          <label>签署时间<input name="signed_at" type="datetime-local" required></label><label>撤回条件<input name="withdrawal_rule" required value="发布前可书面撤回"></label>
+          <label class="wide">授权材料 SHA-256<input name="evidence_digest" required value="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"></label>
+          <label>核验人<input name="verified_by" required value="ethics-clerk"></label><label>操作者<input name="actor" required value="collector-1"></label><button>核验授权</button>
+        </form>
+      </details>
+
+      <details><summary><b>03</b> 导入时间码、说话人与转写</summary>
+        <form id="annotation-form"><label>标注人<input name="actor" required value="editor-1"></label>
+          <label>片段 JSON<textarea name="segments" rows="8">[{"segment_id":"seg-1","start_ms":0,"end_ms":4200,"speaker_code":"speaker-1","raw_text":"我叫阿岚，住在青石村。"}]</textarea></label><button>保存标注</button>
+        </form>
+      </details>
+
+      <details><summary><b>04</b> 标记个人信息并生成预览</summary>
+        <form id="redaction-form"><label>脱敏编辑人<input name="actor" required value="editor-1"></label>
+          <label>按片段标记 JSON<textarea name="marks" rows="8">{"seg-1":[{"start":2,"end":4,"kind":"person"},{"start":7,"end":10,"kind":"place"}]}</textarea></label>
+          <label class="check"><input type="checkbox" name="confirm_no_pii">我确认未标记片段不含个人信息</label>
+          <div class="actions"><button type="button" id="preview">只生成预览</button><button>保存脱敏版本</button></div><pre id="preview-output">等待预览</pre>
+        </form>
+      </details>
+
+      <details><summary><b>05</b> 独立伦理复核</summary>
+        <form id="review-form" class="grid"><label>复核 ID<input name="review_id" required value="review-1"></label><label>复核人<input name="actor" required value="reviewer-1"></label>
+          <label>结论<select name="decision"><option value="approved">批准</option><option value="rejected">驳回</option></select></label><label>复核意见<input name="findings" value="授权和脱敏范围符合开放要求"></label>
+          <label class="wide">修订要求（驳回时每行一项）<textarea name="required_changes" rows="3"></textarea></label><button>签署复核</button></form>
+      </details>
+
+      <details><summary><b>06</b> 管理员签发并只读封存</summary>
+        <form id="release-form" class="grid"><label>档案管理员<input name="actor" required value="archivist-1"></label><button>签发发布清单</button></form>
+      </details>
+
+      <details open><summary><b>07</b> 状态、发布文本和审计链</summary>
+        <div class="actions"><button id="load-audit" type="button" class="secondary">查询审计事件</button><button id="load-manifest" type="button" class="secondary">查询发布清单</button></div>
+        <pre id="record-output">尚无查询结果</pre>
+      </details>
+    </section>
+  </main>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
